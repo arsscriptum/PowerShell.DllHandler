@@ -11,6 +11,14 @@ param (
       [switch]$Uninstall
     )
 
+
+$Script:ModLogScript = (Resolve-Path "$PSScriptRoot\modlog.ps1").Path
+$Script:DllExpExe = (Resolve-Path "..\bin\dllexp.exe").Path
+
+Write-Host -f DarkYellow "IMPORTING $Script:ModLogScript"
+. "$Script:ModLogScript"
+
+
 function Uninstall-ContextualMenu
 {
     [CmdletBinding(SupportsShouldProcess)]
@@ -24,8 +32,9 @@ function Uninstall-ContextualMenu
         $null=Remove-Item -Path $RegistryPath -Recurse -Force -EA Ignore | Out-Null
 
         Remove-PSDrive -Name HKCR
+    }
     catch {
-        Write-Error $_
+        Write-Host $_
     }        
 }
 
@@ -33,41 +42,43 @@ function Uninstall-ContextualMenu
 
 function Install-ContextualMenu{
 
-    try{
+    [CmdletBinding(SupportsShouldProcess)]
+    param ()
 
+    try{
         # Create a temporary PowerShell drive called PSDrive:
         # that's mapped to the \\Server01\Public network share.
         New-PSDrive -PSProvider registry -Root HKEY_CLASSES_ROOT -Name HKCR
                 
-        Write-ChannelMessage  "====================================="
-        Write-ChannelMessage  "ContextualMenu Config"
-        Write-ChannelMessage  "====================================="
+        Write-MMsg  "====================================="
+        Write-MMsg  "ContextualMenu Config"
+        Write-MMsg  "====================================="
         
         $RegistryPathDllexp = "HKCR:\dllfile\shell\dllexp"
         $RegistryPathCmd = "$RegistryPathDllexp\command"
         $RootPath = (Resolve-Path "$PSScriptRoot\..").Path
         $BinPath = Join-Path $RootPath 'bin'
         $ImgPath = Join-Path $RootPath 'img'
-        $IconPath = Join-Path $ImgPath $Icon
+        $IconPath = Join-Path $ImgPath 'dll2.ico'
         $Program = Join-Path $BinPath 'dllexp.exe'
 
-        Write-ChannelMessage  "RootPath $RootPath"
-        Write-ChannelMessage  "BinPath $BinPath"
-        Write-ChannelMessage  "ImgPath $ImgPath"
-        Write-ChannelMessage  "IconPath $IconPath"
-        Write-ChannelMessage  "Program $Program"
+        Write-MMsg  "RootPath $RootPath"
+        Write-MMsg  "BinPath $BinPath"
+        Write-MMsg  "ImgPath $ImgPath"
+        Write-MMsg  "IconPath $IconPath"
+        Write-MMsg  "Program $Program"
         if(-not(Test-Path $Program)){
             if(($ENV:ToolsRoot -eq $null) -Or ($ENV:ToolsRoot -eq '')){
                 Write-Warning "ENVIRONMENT VARIABLE ToolsRoot not set to a path containing dllexp.exe..."
                 throw "NOT VALID PROGRAM PATH.... $BinPath"
             }
             $Program = Join-Path $ENV:ToolsRoot 'dllexp.exe'
-            Write-ChannelMessage  "Program dllexp PATH $Program "
+            Write-MMsg  "Program dllexp PATH $Program "
         }
         $Cmd = '"' + $Program + '"'
         $Cmd += ' "%1"'
         New-Item $RegistryPathCmd -Force -Value "$Cmd"
-        Write-ChannelMessage  "Cmd $$Cmd"
+        Write-MMsg  "Cmd $$Cmd"
 
         if(-not(Test-Path $IconPath)){
             if(($ENV:SystemIcons -eq $null) -Or ($ENV:SystemIcons -eq '')){
@@ -75,7 +86,7 @@ function Install-ContextualMenu{
                 throw "NOT VALID ICONS PATH.... $IconPath"
             }
             $IconPath = Join-Path "$ENV:SystemIcons" $Icon
-            Write-ChannelMessage  "IconPath $IconPath UDPATE"
+            Write-MMsg  "IconPath $IconPath UDPATE"
         }
         
         New-ItemProperty $RegistryPathDllexp -Name 'Icon' -Value  "$IconPath" | Out-Null
@@ -142,11 +153,11 @@ $ScriptList | ForEach-Object {
 Uninstall-ContextualMenu
 
 if($Uninstall){
-    Write-Host "Uninstall Completed, exiting." -f DarkYellow
+    Write-MOk "Uninstall Completed, exiting." 
     return
 }
-Write-Host "Starting configuration" -f DarkYellow
-Install-ContextualMenu 'C:\Programs\SystemTools\dllexp.exe' 'dll2.ico'
-Write-Host "Install Completed, exiting." -f DarkYellow
+Write-MMsg "Starting configuration"
+Install-ContextualMenu
+Write-MOk "Install Completed, exiting." 
 
 
